@@ -43,8 +43,8 @@ class DCGAN(nn.Module):
         self.discriminator = Discriminator()
         self.device = device
         self.to(device)
-        self.optimizerG = torch.optim.Adam(self.generator.parameters(), lr_G)
-        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), lr_D)
+        self.optimizerG = torch.optim.Adam(self.generator.parameters(), lr_G, betas=(0.5, 0.999))
+        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), lr_D  betas=(0.5, 0.999))
         self.bceloss = nn.BCELoss()
 
     def flip_grad(self):
