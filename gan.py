@@ -74,6 +74,7 @@ class DCGAN(nn.Module):
         self.optimizerD.step()
         self.flip_grad()
         self.optimizerG.step()
+        return D_r, D_f
         
         
     def transform(self, x):
