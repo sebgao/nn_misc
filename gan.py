@@ -75,12 +75,12 @@ class DCGAN(nn.Module):
         self.generator.zero_grad()
 
         output = self.discriminator(real_sample)
-        err_real = self.bceloss(output, real_label)
+        err_real = 0.05*self.bceloss(output, real_label)
         err_real.backward()
         D_r = err_real.mean().item()
 
         fake = self.generator(fake_sample)
-        output = self.discriminator(fake).view(-1)
+        output = 0.08*self.discriminator(fake).view(-1)
         err_fake = self.bceloss(output, fake_label)
         err_fake.backward()
         D_f = err_fake.mean().item()
@@ -88,7 +88,7 @@ class DCGAN(nn.Module):
         self.flip_grad()
 
         real = self.generator(real_sample)
-        err_mse = F.mse_loss(real, real_sample)
+        err_mse = 2*F.mse_loss(real, real_sample)
         err_mse.backward()
         G_x = err_mse.item()
 
