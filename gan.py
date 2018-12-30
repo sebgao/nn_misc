@@ -54,6 +54,7 @@ class DCGAN(nn.Module):
 
     def identity_train(self, real_sample):
         self.train()
+        self.generator.zero_grad()
         real = self.generator(real_sample)
         err_mse = F.mse_loss(real, real_sample)
         err_mse.backward()
@@ -106,4 +107,4 @@ if __name__ == "__main__":
     X = torch.randn((6, 3, 64, 64))
     gan = DCGAN()
     print(gan(X).shape)
-    gan.train(X, X)
+    gan.ad_train(X, X)
