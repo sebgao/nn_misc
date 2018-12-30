@@ -80,8 +80,8 @@ class DCGAN(nn.Module):
         D_r = err_real.mean().item()
 
         fake = self.generator(fake_sample)
-        output = 0.08*self.discriminator(fake).view(-1)
-        err_fake = self.bceloss(output, fake_label)
+        output = self.discriminator(fake).view(-1)
+        err_fake = 0.08*self.bceloss(output, fake_label)
         err_fake.backward()
         D_f = err_fake.mean().item()
 
