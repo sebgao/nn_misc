@@ -70,6 +70,8 @@ class DCGAN(nn.Module):
         fake_label = torch.full((fake_B, ), 1, device=self.device)
 
         self.discriminator.zero_grad()
+        self.generator.zero_grad()
+
         output = self.discriminator(real_sample)
         err_real = self.bceloss(output, real_label)
         err_real.backward()

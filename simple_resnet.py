@@ -60,8 +60,6 @@ class ResAutoEncoder(nn.Module):
             BasicBlock(32, 64, stride=2),
             BasicBlock(64, 128, stride=2),
             BasicBlock(128, 128, stride=2),
-            conv1x1(128, 128),
-            nn.InstanceNorm2d(128),
         )
 
         self.decoder = nn.Sequential(
