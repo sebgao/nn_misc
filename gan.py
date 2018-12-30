@@ -44,7 +44,7 @@ class DCGAN(nn.Module):
         self.device = device
         self.to(device)
         self.optimizerG = torch.optim.Adam(self.generator.parameters(), 0.0002, betas=(0.5, 0.999))
-        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), 0.0002, betas=(0.5, 0.999))
+        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), 0.00001, betas=(0.5, 0.999))
         self.bceloss = nn.BCELoss()
 
     def flip_grad(self):
@@ -52,7 +52,9 @@ class DCGAN(nn.Module):
             if p.requires_grad:
                 p.grad.data.mul(-1.0)
 
-    def train(self, real_sample, fake_sample):
+    def ad_train(self, real_sample, fake_sample):
+        self.train()
+
         real_B = real_sample.shape[0]
         real_label = torch.full((real_B, ), 1, device=self.device)
 
@@ -71,13 +73,19 @@ class DCGAN(nn.Module):
         err_fake.backward()
         D_f = err_fake.mean().item()
 
+        real = self.generator(real_sample)
+        err_mse = F.mse_loss(real, real_sample)
+        err_mse.backward()
+        G_x = err_mse.item()
+
         self.optimizerD.step()
         self.flip_grad()
         self.optimizerG.step()
-        return D_r, D_f
+        return D_r, D_f, G_x
         
         
     def transform(self, x):
+        self.eval()
         return self.generator(x)
         
     def forward(self, x):
