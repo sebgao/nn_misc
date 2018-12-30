@@ -22,11 +22,11 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         medium = max(inplanes, planes)//2
         self.conv1 = conv1x1(inplanes, medium)
-        self.bn1 = nn.BatchNorm2d(medium)
+        self.bn1 = nn.InstanceNorm2d(medium)
         self.conv2 = conv3x3(medium, medium, stride=stride)
-        self.bn2 = nn.BatchNorm2d(medium)
+        self.bn2 = nn.InstanceNorm2d(medium)
         self.conv3 = conv1x1(medium, planes)
-        self.bn3 = nn.BatchNorm2d(planes)
+        self.bn3 = nn.InstanceNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         if stride == 2 or inplanes != planes:
             self.transition = conv3x3(inplanes, planes, stride=stride)
@@ -60,6 +60,8 @@ class ResAutoEncoder(nn.Module):
             BasicBlock(32, 64, stride=2),
             BasicBlock(64, 128, stride=2),
             BasicBlock(128, 128, stride=2),
+            conv1x1(128, 128),
+            nn.InstanceNorm2d(128),
         )
 
         self.decoder = nn.Sequential(
