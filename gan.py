@@ -81,13 +81,14 @@ class DCGAN(nn.Module):
         err_fake.backward()
         D_f = err_fake.mean().item()
 
+        self.flip_grad()
+
         real = self.generator(real_sample)
         err_mse = F.mse_loss(real, real_sample)
         err_mse.backward()
         G_x = err_mse.item()
 
         self.optimizerD.step()
-        self.flip_grad()
         self.optimizerG.step()
         return D_r, D_f, G_x
         
