@@ -59,6 +59,7 @@ class DCGAN(nn.Module):
         err_mse = F.mse_loss(real, real_sample)
         err_mse.backward()
         G_x = err_mse.item()
+        self.optimizerG.step()
         return G_x
 
     def ad_train(self, real_sample, fake_sample):
