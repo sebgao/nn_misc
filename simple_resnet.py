@@ -20,13 +20,13 @@ def conv3x3(in_planes, out_planes, stride=1, dilation=1):
 class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1):
         super(BasicBlock, self).__init__()
-        medium = max(inplanes, planes)//2
+        medium = max(inplanes, planes)//4
         self.conv1 = conv1x1(inplanes, medium)
-        self.bn1 = nn.InstanceNorm2d(medium)
+        self.bn1 = nn.BatchNorm2d(medium)
         self.conv2 = conv3x3(medium, medium, stride=stride)
-        self.bn2 = nn.InstanceNorm2d(medium)
+        self.bn2 = nn.BatchNorm2d(medium)
         self.conv3 = conv1x1(medium, planes)
-        self.bn3 = nn.InstanceNorm2d(planes)
+        self.bn3 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         if stride == 2 or inplanes != planes:
             self.transition = conv3x3(inplanes, planes, stride=stride)
