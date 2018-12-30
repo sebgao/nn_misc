@@ -37,14 +37,14 @@ class Discriminator(nn.Module):
         return self.main(x).view(-1)
 
 class DCGAN(nn.Module):
-    def __init__(self, device=torch.device('cpu')):
+    def __init__(self, device=torch.device('cpu'), lr_G = 1e-3, lr_D = 5*1e-4):
         super(DCGAN, self).__init__()
         self.generator = ResAutoEncoder()
         self.discriminator = Discriminator()
         self.device = device
         self.to(device)
-        self.optimizerG = torch.optim.Adam(self.generator.parameters(), 0.0002, betas=(0.5, 0.999))
-        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), 0.0002, betas=(0.5, 0.999))
+        self.optimizerG = torch.optim.Adam(self.generator.parameters(), lr_G, betas=(0.5, 0.999))
+        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), lr_D, betas=(0.5, 0.999))
         self.bceloss = nn.BCELoss()
 
     def flip_grad(self):
@@ -59,7 +59,7 @@ class DCGAN(nn.Module):
         err_mse.backward()
         G_x = err_mse.item()
         return G_x
-        
+
     def ad_train(self, real_sample, fake_sample):
         self.train()
 
