@@ -20,7 +20,7 @@ def conv3x3(in_planes, out_planes, stride=1, dilation=1):
 class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1):
         super(BasicBlock, self).__init__()
-        medium = max(inplanes, planes)//4
+        medium = max(inplanes, planes)
         self.conv1 = conv1x1(inplanes, medium)
         self.bn1 = nn.BatchNorm2d(medium)
         self.conv2 = conv3x3(medium, medium, stride=stride)
@@ -58,7 +58,7 @@ class ResAutoEncoder(nn.Module):
         self.encoder = nn.Sequential(
             BasicBlock(3, 32, stride=2),
             BasicBlock(32, 64, stride=2),
-            BasicBlock(64, 64),
+            BasicBlock(64, 64, stride=2),
             BasicBlock(64, 128, stride=2),
             BasicBlock(128, 128),
             conv1x1(128, 128),
@@ -67,7 +67,9 @@ class ResAutoEncoder(nn.Module):
 
         self.decoder = nn.Sequential(
             BasicBlock(128, 64),
-            #nn.Upsample(scale_factor=2),
+            nn.Upsample(scale_factor=2),
+            BasicBlock(64, 64),
+            BasicBlock(64, 64),
             nn.Upsample(scale_factor=2),
             BasicBlock(64, 32),
             BasicBlock(32, 32),
