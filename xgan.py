@@ -19,15 +19,15 @@ def conv3x3(in_planes, out_planes, stride=1, dilation=1):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, inplanes, planes, stride=1):
+    def __init__(self, inplanes, planes, stride=1, norm=nn.BatchNorm2d):
         super(BasicBlock, self).__init__()
         medium = max(inplanes, planes)
         self.conv1 = conv1x1(inplanes, medium)
-        self.bn1 = nn.BatchNorm2d(medium)
+        self.bn1 = norm(medium)
         self.conv2 = conv3x3(medium, medium, stride=stride)
-        self.bn2 = nn.BatchNorm2d(medium)
+        self.bn2 = norm(medium)
         self.conv3 = conv3x3(medium, planes)
-        self.bn3 = nn.BatchNorm2d(planes)
+        self.bn3 = norm(planes)
         self.relu = nn.ReLU(inplace=True)
         if stride == 2 or inplanes != planes:
             self.transition = conv3x3(inplanes, planes, stride=stride)
@@ -58,11 +58,11 @@ class BasicBlock(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, layer=4):
         super(Discriminator, self).__init__()
-        main = [BasicBlock(128, 64)]
-        main += [conv_bn_relu(64, stride=2),] * (layer - 1)
+        main = [BasicBlock(128, 64, norm=nn.InstanceNorm2d)]
+        main += [conv_bn_relu(64, stride=2, norm=nn.InstanceNorm2d),] * (layer - 1)
         main += [conv3x3(64, 64, stride=2), nn.LeakyReLU(0.1, inplace=True), ]
-        #main += [nn.AdaptiveAvgPool2d((1, 1))]
-        main += [conv1x1(64, 1), nn.Sigmoid()]
+        main += [nn.AdaptiveAvgPool2d((1, 1))]
+        main += [nn.Conv2d(64, 1, 1), nn.Tanh(),]
         self.main = nn.Sequential(
             *main
         )
@@ -74,9 +74,9 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         self.main = nn.Sequential(
-            BasicBlock(3, 32, stride=2),
-            BasicBlock(32, 64, stride=2),
+            BasicBlock(3, 64, stride=2),
             BasicBlock(64, 128, stride=2),
+            BasicBlock(128, 128, stride=2),
             #BasicBlock(128, 128, stride=2),
             #conv_bn_relu(128),
             #conv_bn_relu(128),
@@ -96,10 +96,10 @@ def upsample(c=64, d=64):
         nn.LeakyReLU(0.1, inplace=True),
     )
 
-def conv_bn_relu(c=64, stride=1):
+def conv_bn_relu(c=64, stride=1, norm=nn.BatchNorm2d):
     return nn.Sequential(
         conv3x3(c, c, stride=stride),
-        nn.BatchNorm2d(c),
+        norm(c),
         nn.LeakyReLU(0.1, inplace=True),
     )
 
@@ -123,12 +123,12 @@ class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
         self.main = nn.Sequential(
-            n_upsample(128, 64),
+            #n_upsample(128, 64),
+            #conv_bn_relu(64),
+            #b_upsample(128, 128),
+            upsample(128, 64),
+            b_upsample(64, 64),
             conv_bn_relu(64),
-
-            n_upsample(64, 64),
-            conv_bn_relu(64),
-            
             b_upsample(64, 64),
             conv_bn_relu(64),
             conv_bn_relu(64),
@@ -171,7 +171,7 @@ class XGAN(nn.Module):
         real_label = torch.full((real_B, ), 1, device=self.device)
 
         fake_B = fake_sample.shape[0]
-        fake_label = torch.full((fake_B, ), 0, device=self.device)
+        fake_label = torch.full((fake_B, ), -1, device=self.device)
 
         #discriminator update#
 
@@ -193,11 +193,13 @@ class XGAN(nn.Module):
         self.optimizerDCD.zero_grad()
 
         fake = self.encoders[0](fake_sample)
-        err_f = self.coeff[1]*self.bceloss(self.discriminator(fake), fake_label.fill_(1))
+        #l1_fake = fake.abs().mean()
+        err_f = self.coeff[1]*self.bceloss(self.discriminator(fake), fake_label.fill_(1.0))
 
-        # real = self.encoders[1](real_sample)
-        # err_f += self.coeff[1]*self.bceloss(self.discriminator(real), real_label.fill_(0))
-
+        real = self.encoders[1](real_sample)
+        #l1_real = real.abs().mean()
+        err_f += self.coeff[1]*self.bceloss(self.discriminator(real), real_label.fill_(-1.0))
+        #err_f += 1e-4*(l1_fake+l1_real)
         err_f.backward()
         E_f = err_f.mean().item()
 
@@ -216,7 +218,6 @@ class XGAN(nn.Module):
         fake = self.forward_inner(real_sample)
         self.switch_path(0, 1)
         err_f += self.coeff[3]*F.mse_loss(self.forward_inner(fake), real_sample)
-
         err_f.backward()
 
         E_r = err_f.item()
