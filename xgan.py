@@ -58,11 +58,11 @@ class BasicBlock(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, layer=4):
         super(Discriminator, self).__init__()
-        main = [BasicBlock(128, 64, norm=nn.InstanceNorm2d)]
-        main += [conv_bn_relu(64, stride=2, norm=nn.InstanceNorm2d),] * (layer - 1)
-        main += [conv3x3(64, 64, stride=2), nn.LeakyReLU(0.1, inplace=True), ]
-        main += [nn.AdaptiveAvgPool2d((1, 1))]
-        main += [nn.Conv2d(64, 1, 1), nn.Tanh(),]
+        main = [BasicBlock(128, 128, norm=nn.InstanceNorm2d)]
+        main += [conv_bn_relu(128, stride=2, norm=nn.InstanceNorm2d),] * (layer - 2)
+        main += [nn.Conv2d(128, 128, 4, stride=4), nn.LeakyReLU(0.1, inplace=True), ]
+        #main += [nn.AdaptiveAvgPool2d((1, 1))]
+        main += [nn.Conv2d(128, 1, 1), nn.Tanh()]
         self.main = nn.Sequential(
             *main
         )
@@ -74,16 +74,12 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         self.main = nn.Sequential(
-            BasicBlock(3, 64, stride=2),
+            BasicBlock(3, 32, stride=2),
+            BasicBlock(32, 64, stride=2),
             BasicBlock(64, 128, stride=2),
-            BasicBlock(128, 128, stride=2),
-            #BasicBlock(128, 128, stride=2),
-            #conv_bn_relu(128),
-            #conv_bn_relu(128),
-            #BasicBlock(128, 128, stride=2),
+            BasicBlock(128, 128),
             conv1x1(128, 128),
             nn.ReLU(inplace=True),
-            #nn.InstanceNorm2d(128),
         )
     
     def forward(self, x):
@@ -123,16 +119,15 @@ class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
         self.main = nn.Sequential(
-            #n_upsample(128, 64),
-            #conv_bn_relu(64),
-            #b_upsample(128, 128),
+            upsample(128, 128),
+            conv_bn_relu(128),
             upsample(128, 64),
-            b_upsample(64, 64),
             conv_bn_relu(64),
-            b_upsample(64, 64),
-            conv_bn_relu(64),
-            conv_bn_relu(64),
-            nn.Conv2d(64, 3, 1),
+            b_upsample(64, 32),
+            conv_bn_relu(32),
+            conv_bn_relu(32),
+            conv_bn_relu(32),
+            nn.Conv2d(32, 3, 1),
             nn.Tanh(),
         )
     
@@ -141,7 +136,7 @@ class Decoder(nn.Module):
 
 class XGAN(nn.Module):
     
-    def __init__(self, device=torch.device('cpu'), lr_G = 3*1e-4, lr_D = 5*1e-4):
+    def __init__(self, device=torch.device('cpu'), lr_G = 3*1e-4, lr_D = 10*1e-4):
         super(XGAN, self).__init__()
         self.encoders = nn.ModuleList([Encoder(), Encoder()])
         self.decoders = nn.ModuleList([Decoder(), Decoder()])
@@ -149,23 +144,20 @@ class XGAN(nn.Module):
         self.bceloss = lambda output, label: (output-label).pow(2).mean()
         self.discriminator = Discriminator(layer=3)
 
-        #self.ttD = Discriminator(layer=4)
-
         self.optimizerECD = torch.optim.Adam(self.encoders.parameters(), lr_G, betas=(0.5, 0.9), weight_decay=5*1e-4)
 
         self.optimizerDCD = torch.optim.Adam(self.decoders.parameters(), lr_G, betas=(0.5, 0.9))
         
-        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), lr_D, betas=(0.5, 0.9), weight_decay=8*1e-4)
-
-        #self.optimizerttD = torch.optim.Adam(self.ttD.parameters(), lr_D, betas=(0.5, 0.999))
+        self.optimizerD = torch.optim.Adam(self.discriminator.parameters(), lr_D, betas=(0.5, 0.9), weight_decay=5*1e-4)
 
         self.path = [0, 0]
         self.device = device
         self.to(device)
-        self.coeff = [0.25, 0.25, 1.0, 0.5]
+        self.coeff = [0.5, 0.5, 2.0, 1.0]
 
     def ad_train(self, real_sample, fake_sample):
         self.train()
+
 
         real_B = real_sample.shape[0]
         real_label = torch.full((real_B, ), 1, device=self.device)
@@ -177,6 +169,8 @@ class XGAN(nn.Module):
 
         self.optimizerD.zero_grad()
         
+        self.discriminator.train()
+
         fake = self.encoders[0](fake_sample)
         err_f = self.coeff[0]*self.bceloss(self.discriminator(fake.detach()), fake_label)
         err_f.backward()
@@ -191,6 +185,8 @@ class XGAN(nn.Module):
 
         self.optimizerECD.zero_grad()
         self.optimizerDCD.zero_grad()
+
+        self.discriminator.eval()
 
         fake = self.encoders[0](fake_sample)
         #l1_fake = fake.abs().mean()
